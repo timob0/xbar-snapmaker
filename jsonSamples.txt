@@ -1,0 +1,23 @@
+readStatus{
+"status":"IDLE",
+"x":112,
+"y":142,
+"z":150,
+"homed":false,
+"offsetX":0,"offsetY":0,"offsetZ":0,
+"toolHead":"TOOLHEAD_3DPRINTING_1",
+"nozzleTemperature":23,
+"nozzleTargetTemperature":0,
+"heatedBedTemperature":24,
+"heatedBedTargetTemperature":0,
+"isFilamentOut":false,
+"workSpeed":1500,
+"printStatus":"Idle",
+"moduleList":{
+	"enclosure":true,
+	"rotaryModule":false,
+	"emergencyStopButton":false,
+	"airPurifier":false},
+"isEnclosureDoorOpen":false,
+"doorSwitchCount":0}
+readEnclosure{"isReady":true,"isDoorEnabled":false,"led":100,"fan":0}%   
