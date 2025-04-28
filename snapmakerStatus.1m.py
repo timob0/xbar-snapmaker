@@ -34,9 +34,9 @@ def main():
     if validate_ip_address(snReply.get("snIP")):
         connectIP = snReply.get("snIP")
         SMtoken = getSMToken(connectIP)
-        postIt(readStatus(SMtoken), readStatusEnclosure(SMtoken))
+        postIt(readStatus(SMtoken), readStatusEnclosure(SMtoken), snReply)
     else:
-        postIt(snReply, None)
+        postIt(snReply, None, None)
 
 def getSMToken(connectIP):
     # Create file if not exists
@@ -83,50 +83,84 @@ def getSMToken(connectIP):
 
 
 # Get Status of Snapmaker 2.0 via API
-def readStatus(SMtoken):
+def readStatus(token):
     
     with open(debuglog, "a") as f:
         f.write("readStatus")
-        SMstatus = "http://" + connectIP + ":8080/api/v1/status?token="
-        r = requests.get(SMstatus+SMtoken)
-        f.write(r.text)
-        snStatus = json.loads(r.text).get("status")
-        snNozzleTemp = json.loads(r.text).get("nozzleTemperature")
-        snNozzleTaTemp = json.loads(r.text).get("nozzleTargetTemperature")
-        snHeatedBedTemp = json.loads(r.text).get("heatedBedTemperature")
-        snHeatedBedTaTemp = json.loads(r.text).get("heatedBedTargetTemperature")
-    
-        if json.loads(r.text).get("fileName") is not None:
-            snFileName = json.loads(r.text).get("fileName") 
+        statusrequest = f"http://{connectIP}:8080/api/v1/status?token={token}"
+        r = requests.get(statusrequest)
+        f.write(r.text + "\n")
+
+        status = json.loads(r.text)
+        
+        snStatus = status["status"]
+        snNozzleTemp      = status["nozzleTemperature"]
+        snNozzleTaTemp    = status["nozzleTargetTemperature"]
+        snHeatedBedTemp   = status["heatedBedTemperature"]
+        snHeatedBedTaTemp = status["heatedBedTargetTemperature"]
+        
+        if status["fileName"] is not None:
+            snFileName = status["fileName"]  
         else:
             snFileName = "N/A"
-        if json.loads(r.text).get("progress") is not None:
+
+        if status["progress"] is not None:
             snProgress = ("{:0.1f}".format(json.loads(r.text).get("progress")*100))
         else:
             snProgress = "0"
-        if json.loads(r.text).get("elapsedTime") is not None:
+        
+        if status["elapsedTime"] is not None:
             snElapsedTime = str(timedelta(seconds=json.loads(r.text).get("elapsedTime")))
         else:
             snElapsedTime = "00:00:00"
-        if json.loads(r.text).get("remainingTime") is not None:
+        
+        if status["remainingTime"] is not None:
             snRemainingTime = str(timedelta(seconds=json.loads(r.text).get("remainingTime")))
         else:
             snRemainingTime = "00:00:00"
     
-        if json.loads(r.text).get("isEnclosureDoorOpen") is not None:
+        if status["isEnclosureDoorOpen"] is not None:
             snEncDoorOpen = json.loads(r.text).get("isEnclosureDoorOpen") 
         else:
             snEncDoorOpen = "N/A"
 
-        if json.loads(r.text).get("isFilamentOut") is not None:
+        if status["isFilamentOut"] is not None:
             snFilamentOut = json.loads(r.text).get("isFilamentOut") 
         else:
             snFilamentOut = "N/A"       
-            
+
+        # TOOLHEAD_3DPRINTING_1
+        if status["toolHead"] is not None:
+            snToolHead = json.loads(r.text).get("toolHead") 
+        else:
+            snToolHead = "N/A"       
+    
+        # "moduleList":{"enclosure":true,"rotaryModule":false,"emergencyStopButton":false,"airPurifier":false}
+        if status["moduleList"]["enclosure"] is not None:
+            snOptionEnc = status["moduleList"]["enclosure"]
+        else:
+            snOptionEnc = "N/A"
+
+        if status["moduleList"]["rotaryModule"] is not None:
+            snOptionRot = status["moduleList"]["rotaryModule"]
+        else:
+            snOptionRot = "N/A" 
+
+        if status["moduleList"]["emergencyStopButton"] is not None:
+            snOptionStop = status["moduleList"]["emergencyStopButton"]
+        else:
+            snOptionStop = "N/A"                
+
+        if status["moduleList"]["airPurifier"] is not None:
+            snOptionAir = status["moduleList"]["airPurifier"]
+        else:
+            snOptionAir = "N/A"   
+        		
         snReply = {"snIP":connectIP,"snStatus":snStatus,"snNozzleTemp":snNozzleTemp,"snNozzleTaTemp":snNozzleTaTemp,
                "snHeatedBedTemp":snHeatedBedTemp,"snHeatedBedTaTemp":snHeatedBedTaTemp,"snFileName":snFileName,
                "snProgress":snProgress,"snElapsedTime":snElapsedTime,"snRemainingTime":snRemainingTime,
-               "snEncDoorOpen":snEncDoorOpen, "snFilamentOut":snFilamentOut}
+               "snEncDoorOpen":snEncDoorOpen, "snFilamentOut":snFilamentOut, "snToolHead":snToolHead,
+               "snOptionEnc":snOptionEnc, "snOptionRot":snOptionRot, "snOptionStop":snOptionStop, "snOptionAir":snOptionAir}
         return(snReply)
   
 # Read Status of Enclosure
@@ -140,7 +174,7 @@ def readStatusEnclosure(SMtoken):
         # r = requests.get(SMstatus+SMtoken)
         SMenclosure = "http://" + connectIP + ":8080/api/v1/enclosure?token="
         r = requests.get(SMenclosure+SMtoken)
-        f.write(r.text)
+        f.write(r.text + "\n")
         # Response format {"isReady":true,"isDoorEnabled":false,"led":100,"fan":0}
         if json.loads(r.text).get("isReady") is not None:
             snEncReady = json.loads(r.text).get("isReady") 
@@ -166,7 +200,7 @@ def readStatusEnclosure(SMtoken):
             snEncFan = f"{json.loads(r.text).get('fan')}"
         else:
             snEncFan = "N/A"
-
+		
         snReply = {"snEncReady":snEncReady,"snEncDoor":snEncDoor,"snEncLed":snEncLed,"snEncFan":snEncFan}
         return(snReply)
 
@@ -224,7 +258,7 @@ def xbarMetadata():
     print("# <xbar.image></xbar.image>")
 
 # Update XBar
-def postIt(state, encState):
+def postIt(state, encState, bcReply):
     scale      = "─┬─┬─┬─┬─┼─┬─┬─┬─┬─"
     scaleStart = "├"
     scaleEnd   = "┤"
@@ -234,8 +268,18 @@ def postIt(state, encState):
     
     print(f"Snapmaker")
     print(f"---")
+    print(f"Model     {bcReply['model']} | font=JetBrainsMono-Regular bash=null")
     print(f"Address   {state['snIP']} | font=JetBrainsMono-Regular bash=null")
+    print(f"---\nInstalled options")
+    if (state is not None):
+        print(f"Enclosure      {'✓' if state['snOptionEnc']  else '✕'}  | font=JetBrainsMono-Regular bash=null")
+        print(f"Rotary Module  {'✓' if state['snOptionRot']  else '✕'}  | font=JetBrainsMono-Regular bash=null")
+        print(f"Stop Button    {'✓' if state['snOptionStop'] else '✕'}  | font=JetBrainsMono-Regular bash=null")
+        print(f"Air Purifier   {'✓' if state['snOptionAir']  else '✕'}  | font=JetBrainsMono-Regular bash=null")
+    
+    print(f"---\nMachine")
     print(f"Status    {state['snStatus']} | font=JetBrainsMono-Regular bash=null")
+    
     if (state is not None and state['snStatus']!="IDLE" and state['snStatus']!="OFFLINE"):
         numBlocks = int(float(state['snProgress'])/5) # 10)*2
         # Cut one to leave the begin of scale
@@ -251,12 +295,15 @@ def postIt(state, encState):
             scBlocks=len(scale)-1
         
         progressMeter = f"{scaleStart}{bar[:brBlocks]}{scale[scBlocks:]}{scaleEnd}"
-        print(f"Printing  {state['snFileName']} | font=JetBrainsMono-Regular bash=null")
+        print(f"File      {state['snFileName']} | font=JetBrainsMono-Regular bash=null")
         print(f"Progress  {progressMeter} {state['snProgress']}% | font=JetBrainsMono-Regular bash=null")
         print(f"Elapsed   {state['snElapsedTime']} | font=JetBrainsMono-Regular bash=null")
         print(f"Remaining {state['snRemainingTime']} | font=JetBrainsMono-Regular bash=null")
+            
         print(f"---")
-        print(f"Temperatures")
+        print(f"3D Printing")
+        
+        print(f"Toolhead     {'Single Extrusion' if state['snToolHead']=='TOOLHEAD_3DPRINTING_1' else 'unknown'} | font=JetBrainsMono-Regular bash=null")
         
         nozzleBars = int(float(state['snNozzleTemp']) / float(state['snNozzleTaTemp']) * 8)
         bgraphNozzle = f"{bargraph[:nozzleBars]}"
