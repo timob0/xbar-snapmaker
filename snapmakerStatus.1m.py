@@ -84,77 +84,39 @@ def getSMToken(connectIP):
 
 # Get Status of Snapmaker 2.0 via API
 def readStatus(token):
-    
     with open(debuglog, "a") as f:
         f.write("readStatus")
         statusrequest = f"http://{connectIP}:8080/api/v1/status?token={token}"
         r = requests.get(statusrequest)
         f.write(r.text + "\n")
 
+        if r.text=="Machine is not connected yet.":
+            return None
+            
         status = json.loads(r.text)
-        
         snStatus = status["status"]
         snNozzleTemp      = status["nozzleTemperature"]
         snNozzleTaTemp    = status["nozzleTargetTemperature"]
         snHeatedBedTemp   = status["heatedBedTemperature"]
         snHeatedBedTaTemp = status["heatedBedTargetTemperature"]
         
-        if status["fileName"] is not None:
-            snFileName = status["fileName"]  
-        else:
-            snFileName = "N/A"
 
-        if status["progress"] is not None:
-            snProgress = ("{:0.1f}".format(json.loads(r.text).get("progress")*100))
-        else:
-            snProgress = "0"
-        
-        if status["elapsedTime"] is not None:
-            snElapsedTime = str(timedelta(seconds=json.loads(r.text).get("elapsedTime")))
-        else:
-            snElapsedTime = "00:00:00"
-        
-        if status["remainingTime"] is not None:
-            snRemainingTime = str(timedelta(seconds=json.loads(r.text).get("remainingTime")))
-        else:
-            snRemainingTime = "00:00:00"
-    
-        if status["isEnclosureDoorOpen"] is not None:
-            snEncDoorOpen = json.loads(r.text).get("isEnclosureDoorOpen") 
-        else:
-            snEncDoorOpen = "N/A"
-
-        if status["isFilamentOut"] is not None:
-            snFilamentOut = json.loads(r.text).get("isFilamentOut") 
-        else:
-            snFilamentOut = "N/A"       
+        snFileName      = status.get("fileName","N/A")  
+        snProgress      = ("{:0.1f}".format(status.get("progress",0)*100))
+        snElapsedTime   = str(timedelta(seconds=status.get("elapsedTime",0)))
+        snRemainingTime = str(timedelta(seconds=status.get("remainingTime",0)))
+        snEncDoorOpen   = status.get("isEnclosureDoorOpen","N/A") 
+        snFilamentOut   = status.get("isFilamentOut","N/A") 
 
         # TOOLHEAD_3DPRINTING_1
-        if status["toolHead"] is not None:
-            snToolHead = json.loads(r.text).get("toolHead") 
-        else:
-            snToolHead = "N/A"       
-    
-        # "moduleList":{"enclosure":true,"rotaryModule":false,"emergencyStopButton":false,"airPurifier":false}
-        if status["moduleList"]["enclosure"] is not None:
-            snOptionEnc = status["moduleList"]["enclosure"]
-        else:
-            snOptionEnc = "N/A"
-
-        if status["moduleList"]["rotaryModule"] is not None:
-            snOptionRot = status["moduleList"]["rotaryModule"]
-        else:
-            snOptionRot = "N/A" 
-
-        if status["moduleList"]["emergencyStopButton"] is not None:
+        snToolHead = status.get("toolHead","N/A")
+        
+        # Check installed options
+        if "moduleList" in status.keys():
+            snOptionEnc  = status["moduleList"]["enclosure"]
+            snOptionRot  = status["moduleList"]["rotaryModule"]
             snOptionStop = status["moduleList"]["emergencyStopButton"]
-        else:
-            snOptionStop = "N/A"                
-
-        if status["moduleList"]["airPurifier"] is not None:
-            snOptionAir = status["moduleList"]["airPurifier"]
-        else:
-            snOptionAir = "N/A"   
+            snOptionAir  = status["moduleList"]["airPurifier"]
         		
         snReply = {"snIP":connectIP,"snStatus":snStatus,"snNozzleTemp":snNozzleTemp,"snNozzleTaTemp":snNozzleTaTemp,
                "snHeatedBedTemp":snHeatedBedTemp,"snHeatedBedTaTemp":snHeatedBedTaTemp,"snFileName":snFileName,
@@ -170,13 +132,16 @@ def readStatus(token):
 def readStatusEnclosure(SMtoken):
     with open(debuglog, "a") as f:
         f.write("readEnclosure")
-        # SMstatus = "http://" + connectIP + ":8080/api/v1/status?token="
-        # r = requests.get(SMstatus+SMtoken)
         SMenclosure = "http://" + connectIP + ":8080/api/v1/enclosure?token="
         r = requests.get(SMenclosure+SMtoken)
         f.write(r.text + "\n")
+
+        if r.text=="Machine is not connected yet.":
+            return None
+
         # Response format {"isReady":true,"isDoorEnabled":false,"led":100,"fan":0}
-        if json.loads(r.text).get("isReady") is not None:
+        status = json.loads(r.text)
+        if status.get("isReady") is not None:
             snEncReady = json.loads(r.text).get("isReady") 
         else:
             snEncReady = "N/A"    
@@ -266,7 +231,7 @@ def postIt(state, encState, bcReply):
     
     bargraph   = "▁▂▃▄▅▆▇█"
     
-    print(f"Snapmaker")
+    print(f"Snapmaker - {state['snStatus']}")
     print(f"---")
     print(f"Model     {bcReply['model']} | font=JetBrainsMono-Regular bash=null")
     print(f"Address   {state['snIP']} | font=JetBrainsMono-Regular bash=null")
