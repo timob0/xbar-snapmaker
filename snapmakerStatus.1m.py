@@ -8,6 +8,14 @@
 #  <xbar.desc>Display Snapmaker v2 status.</xbar.desc>
 #  <xbar.image>https://github.com/timob0/xbar-snapmaker/blob/main/snapStatus.png</xbar.image>
 #  <xbar.var>boolean(VAR_LOGGING=true): If true, logs Snapmaker status data to snaplog.txt.</xbar.var>
+#  <xbar.var>string(VAR_TOOL1NAME="Cura"): Tool 1 to show in the Launch... menu.</xbar.var>
+#  <xbar.var>string(VAR_TOOL1PATH="/Applications/UltiMaker Cura.app/Contents/MacOS/UltiMaker-Cura"): Path to tool 1.</xbar.var>
+#  <xbar.var>string(VAR_TOOL2NAME="Fusion"): Tool 2 to show in the Launch... menu.</xbar.var>
+#  <xbar.var>string(VAR_TOOL2PATH="/Users/timo/Applications/Autodesk Fusion.app/Contents/MacOS/Autodesk Fusion"): Path to tool 2.</xbar.var>
+#  <xbar.var>string(VAR_TOOL3NAME=""): Tool 3 to show in the Launch... menu.</xbar.var>
+#  <xbar.var>string(VAR_TOOL3PATH=""): Path to tool 3.</xbar.var>
+#  <xbar.var>string(VAR_TOOL4NAME=""): Tool 4 to show in the Launch... menu.</xbar.var>
+#  <xbar.var>string(VAR_TOOL4PATH=""): Path to tool 4.</xbar.var>
 
 import socket
 import requests
@@ -223,125 +231,143 @@ def readStatusEnclosure(SMtoken):
 #  'Snapmaker@X.X.X.X|model:Snapmaker 2 Model A350|status:IDLE'
 #  'Snapmaker@X.X.X.X|model:Snapmaker 2 Model A350|status:RUNNING'
 def checkState(UDPClientSocket,msg,destPort,retries):
-    global snReply
-    global snWorking
-    global retryCounter
-    UDPClientSocket.sendto(msg, ("255.255.255.255", destPort))
-    try:
-        reply, server_address_info = UDPClientSocket.recvfrom(1024)
-        elements = str(reply).split('|')
-        snIP = (elements[0]).replace('\'','')
-        snModel = (elements[1]).replace('\'','')
-        snStatus = (elements[2]).replace('\'','')
-        snIP, snIPVal = snIP.split('@')
-        snModel, snModelVal = snModel.split(':')
-        snStatus, snStatusVal = snStatus.split(':')
-        snWorking = snStatusVal
-        snReply = {"snIP":snIPVal, "model":snModelVal, "snStatus":snStatusVal}
-    except socket.timeout:
-        retryCounter += 1
-        if (retryCounter==retries): 
-          snReply = {"snIP":"N/A", "model":"N/A", "snStatus":"OFFLINE",
-                     "snNozzleTemp":0,"snNozzleTaTemp":0,
-                     "snHeatedBedTemp":0,"snHeatedBedTaTemp":0,"snFileName":"N/A",
-                     "snProgress":0,"snElapsedTime":"00:00:00","snRemainingTime":"00:00:00"}
-          return
-        else:
-          checkState(UDPClientSocket,msg,destPort,retries);
+	global snReply
+	global snWorking
+	global retryCounter
+	UDPClientSocket.sendto(msg, ("255.255.255.255", destPort))
+	try:
+		reply, server_address_info = UDPClientSocket.recvfrom(1024)
+		elements = str(reply).split('|')
+		snIP = (elements[0]).replace('\'','')
+		snModel = (elements[1]).replace('\'','')
+		snStatus = (elements[2]).replace('\'','')
+		snIP, snIPVal = snIP.split('@')
+		snModel, snModelVal = snModel.split(':')
+		snStatus, snStatusVal = snStatus.split(':')
+		snWorking = snStatusVal
+		snReply = {"snIP":snIPVal, "model":snModelVal, "snStatus":snStatusVal}
+	except socket.timeout:
+		retryCounter += 1
+		if (retryCounter==retries): 
+		  snReply = {"snIP":"N/A", "model":"N/A", "snStatus":"OFFLINE",
+					 "snNozzleTemp":0,"snNozzleTaTemp":0,
+					 "snHeatedBedTemp":0,"snHeatedBedTaTemp":0,"snFileName":"N/A",
+					 "snProgress":0,"snElapsedTime":"00:00:00","snRemainingTime":"00:00:00"}
+		  return
+		else:
+		  checkState(UDPClientSocket,msg,destPort,retries);
           
 # Check if IP is valid:          
 def validate_ip_address(ip_string):
-   try:
-       ip_object = ipaddress.ip_address(ip_string)
-       return True
-   except ValueError:
-       return False
+	try:
+	   ip_object = ipaddress.ip_address(ip_string)
+	   return True
+	except ValueError:
+	   return False
 
 # Update XBar
 def postIt(state, encState, bcReply):
-    scale      = "─┬─┬─┬─┬─┼─┬─┬─┬─┬─"
-    scaleStart = "├"
-    scaleEnd   = "┤"
-    bar        = "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
-    
-    bargraph   = "▁▂▃▄▅▆▇█"
-    
-    print(f"Snapmaker - {bcReply['snStatus']}")
-    print(f"---")
-    print(f"Model     {bcReply['model']} | font=JetBrainsMono-Regular bash=null")
-    print(f"Address   {bcReply['snIP']} | font=JetBrainsMono-Regular bash=null")
-    # print(f"Conf.path {os.environ.get('HOME')} | font=JetBrainsMono-Regular bash=null")
-    
-    if (state is not None and state['snStatus']=="NOT_CONNECTED"):
-    	print(f"⚠ Reconnect to Snapmaker in setup menu.  | font=JetBrainsMono-Regular bash=null color=purple")
-    
-    if (state is not None and state['snStatus']!="NOT_CONNECTED"):
-        print(f"---\nInstalled options")
-        print(f"Enclosure      {'✓' if state['snOptionEnc']  else '✕'}  | font=JetBrainsMono-Regular bash=null")
-        print(f"Rotary Module  {'✓' if state['snOptionRot']  else '✕'}  | font=JetBrainsMono-Regular bash=null")
-        print(f"Stop Button    {'✓' if state['snOptionStop'] else '✕'}  | font=JetBrainsMono-Regular bash=null")
-        print(f"Air Purifier   {'✓' if state['snOptionAir']  else '✕'}  | font=JetBrainsMono-Regular bash=null")
-    
-        print(f"---\nMachine")
-        print(f"Status    {state['snStatus']} | font=JetBrainsMono-Regular bash=null")
-    
-    if (state is not None and state['snStatus']!="IDLE" and state['snStatus']!="OFFLINE" and state['snStatus']!="NOT_CONNECTED"):
-        numBlocks = int(float(state['snProgress'])/5) # 10)*2
-        # Cut one to leave the begin of scale
-        scBlocks = 0
-        brBlocks = 0
-        
-        if (numBlocks>0):
-            brBlocks=numBlocks
-            scBlocks=numBlocks
-        
-        if (numBlocks>=20):
-            brBlocks=numBlocks-1
-            scBlocks=len(scale)-1
-        
-        progressMeter = f"{scaleStart}{bar[:brBlocks]}{scale[scBlocks:]}{scaleEnd}"
-        print(f"File      {state['snFileName']} | font=JetBrainsMono-Regular bash=null")
-        print(f"Progress  {progressMeter} {state['snProgress']}% | font=JetBrainsMono-Regular bash=null")
-        print(f"Elapsed   {state['snElapsedTime']} | font=JetBrainsMono-Regular bash=null")
-        print(f"Remaining {state['snRemainingTime']} | font=JetBrainsMono-Regular bash=null")
-            
-        print(f"---")
-        print(f"3D Printing")
-        
-        print(f"Toolhead     {'Single Extrusion' if state['snToolHead']=='TOOLHEAD_3DPRINTING_1' else 'unknown'} | font=JetBrainsMono-Regular bash=null")
-        
-        nozzleBars = int(float(state['snNozzleTemp']) / float(state['snNozzleTaTemp']) * 8)
-        bgraphNozzle = f"{bargraph[:nozzleBars]}"
-        
-        bedBars = int(float(state['snHeatedBedTemp']) / float(state['snHeatedBedTaTemp']) * 8)
-        bgraphBed = f"{bargraph[:bedBars]}"
-        
-        print(f"⍒  Nozzle    {state['snNozzleTemp']}°C  {bgraphNozzle}  [{state['snNozzleTaTemp']}°C] | font=JetBrainsMono-Regular bash=null")
-        print(f"≋  Heatbed   {state['snHeatedBedTemp']}°C  {bgraphBed}  [ {state['snHeatedBedTaTemp']}°C] | font=JetBrainsMono-Regular bash=null")
-        print(f"~> Filament  {'⚠ Out or broken' if state['snFilamentOut'] else '✓ Okay'} | font=JetBrainsMono-Regular bash=null")
-        
-    if (encState is not None and encState['snEncReady']==True and state['snStatus']!="NOT_CONNECTED"):
-        print(f"---")
-        print(f"Enclosure")
+	scale      = "─┬─┬─┬─┬─┼─┬─┬─┬─┬─"
+	scaleStart = "├"
+	scaleEnd   = "┤"
+	bar        = "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓"
+	
+	bargraph   = "▁▂▃▄▅▆▇█"
+	
+	print(f"Snapmaker - {bcReply['snStatus']}")
+	print(f"---")
+	print(f"Model     {bcReply['model']} | font=JetBrainsMono-Regular bash=null")
+	print(f"Address   {bcReply['snIP']} | font=JetBrainsMono-Regular bash=null")
+	# print(f"Conf.path {os.environ.get('HOME')} | font=JetBrainsMono-Regular bash=null")
+	
+	if (state is not None and state['snStatus']=="NOT_CONNECTED"):
+		print(f"⚠ Reconnect to Snapmaker in setup menu.  | font=JetBrainsMono-Regular bash=null color=purple")
+	
+	if (state is not None and state['snStatus']!="NOT_CONNECTED"):
+		print(f"---\nInstalled options")
+		print(f"Enclosure      {'✓' if state['snOptionEnc']  else '✕'}  | font=JetBrainsMono-Regular bash=null")
+		print(f"Rotary Module  {'✓' if state['snOptionRot']  else '✕'}  | font=JetBrainsMono-Regular bash=null")
+		print(f"Stop Button    {'✓' if state['snOptionStop'] else '✕'}  | font=JetBrainsMono-Regular bash=null")
+		print(f"Air Purifier   {'✓' if state['snOptionAir']  else '✕'}  | font=JetBrainsMono-Regular bash=null")
+	
+		print(f"---\nMachine")
+		print(f"Status    {state['snStatus']} | font=JetBrainsMono-Regular bash=null")
+	
+	if (state is not None and state['snStatus']!="IDLE" and state['snStatus']!="OFFLINE" and state['snStatus']!="NOT_CONNECTED"):
+		numBlocks = int(float(state['snProgress'])/5) # 10)*2
+		# Cut one to leave the begin of scale
+		scBlocks = 0
+		brBlocks = 0
+		
+		if (numBlocks>0):
+			brBlocks=numBlocks
+			scBlocks=numBlocks
+		
+		if (numBlocks>=20):
+			brBlocks=numBlocks-1
+			scBlocks=len(scale)-1
+		
+		progressMeter = f"{scaleStart}{bar[:brBlocks]}{scale[scBlocks:]}{scaleEnd}"
+		print(f"File      {state['snFileName']} | font=JetBrainsMono-Regular bash=null")
+		print(f"Progress  {progressMeter} {state['snProgress']}% | font=JetBrainsMono-Regular bash=null")
+		print(f"Elapsed   {state['snElapsedTime']} | font=JetBrainsMono-Regular bash=null")
+		print(f"Remaining {state['snRemainingTime']} | font=JetBrainsMono-Regular bash=null")
+			
+		print(f"---")
+		print(f"3D Printing")
+		
+		print(f"Toolhead     {'Single Extrusion' if state['snToolHead']=='TOOLHEAD_3DPRINTING_1' else 'unknown'} | font=JetBrainsMono-Regular bash=null")
+		
+		nozzleBars = int(float(state['snNozzleTemp']) / float(state['snNozzleTaTemp']) * 8)
+		bgraphNozzle = f"{bargraph[:nozzleBars]}"
+		
+		bedBars = int(float(state['snHeatedBedTemp']) / float(state['snHeatedBedTaTemp']) * 8)
+		bgraphBed = f"{bargraph[:bedBars]}"
+		
+		print(f"⍒  Nozzle    {state['snNozzleTemp']}°C  {bgraphNozzle}  [{state['snNozzleTaTemp']}°C] | font=JetBrainsMono-Regular bash=null")
+		print(f"≋  Heatbed   {state['snHeatedBedTemp']}°C  {bgraphBed}  [ {state['snHeatedBedTaTemp']}°C] | font=JetBrainsMono-Regular bash=null")
+		print(f"~> Filament  {'⚠ Out or broken' if state['snFilamentOut'] else '✓ Okay'} | font=JetBrainsMono-Regular bash=null")
+		
+	if (encState is not None and encState['snEncReady']==True and state['snStatus']!="NOT_CONNECTED"):
+		print(f"---")
+		print(f"Enclosure")
+	
+		print(f"◫ Door     {'⚠ Open' if state['snEncDoorOpen'] else '■ Closed'} | font=JetBrainsMono-Regular bash=null")       	
+		
+		ledBars = int(float(encState['snEncLed']) / 100.0 * 8)
+		bgraphLed = f"{bargraph[:ledBars]}"
+		
+		fanBars = int(float(encState['snEncFan']) / 100.0 * 8)
+		bgraphFan = f"{bargraph[:fanBars]}"
+	   
+		print(f"◌ Lights   {encState['snEncLed']}%   {bgraphLed} | font=JetBrainsMono-Regular bash=null")
+		print(f"✗ Fan      {encState['snEncFan']}%   {bgraphFan} | font=JetBrainsMono-Regular bash=null")
 
-        print(f"◫ Door     {'⚠ Open' if state['snEncDoorOpen'] else '■ Closed'} | font=JetBrainsMono-Regular bash=null")       	
-        
-        ledBars = int(float(encState['snEncLed']) / 100.0 * 8)
-        bgraphLed = f"{bargraph[:ledBars]}"
-        
-        fanBars = int(float(encState['snEncFan']) / 100.0 * 8)
-        bgraphFan = f"{bargraph[:fanBars]}"
-       
-        print(f"◌ Lights   {encState['snEncLed']}%   {bgraphLed} | font=JetBrainsMono-Regular bash=null")
-        print(f"✗ Fan      {encState['snEncFan']}%   {bgraphFan} | font=JetBrainsMono-Regular bash=null")
-
-    print(f"---")
-    print(f"Tools")
-    print(f"Launch Cura... | font=JetBrainsMono-Regular bash='/Applications/UltiMaker Cura.app/Contents/MacOS/UltiMaker-Cura' terminal=false")  
-    print(f"Launch Fusion... | font=JetBrainsMono-Regular bash='/Users/timo/Applications/Autodesk Fusion.app/Contents/MacOS/Autodesk Fusion' terminal=false")
-    print(f"---")        
-    print(f"Setup")    
-    print(f"Reconnect... | font=JetBrainsMono-Regular shell='{scriptname}' param1=-reconnect terminal=true refresh=true")
+	print(f"---")
+	print(f"Tools")
+	if (os.environ.get('VAR_TOOL1NAME')!=None):
+		tool_name = os.environ.get('VAR_TOOL1NAME')
+		tool_path = os.environ.get('VAR_TOOL1PATH')
+		print(f"Launch {tool_name}... | font=JetBrainsMono-Regular bash='{tool_path}' terminal=false")  
+	
+	if (os.environ.get('VAR_TOOL2NAME')!=None):
+		tool_name = os.environ.get('VAR_TOOL2NAME')
+		tool_path = os.environ.get('VAR_TOOL2PATH')
+		print(f"Launch {tool_name}... | font=JetBrainsMono-Regular bash='{tool_path}' terminal=false")  
+		
+	if (os.environ.get('VAR_TOOL3NAME')!=None):
+		tool_name = os.environ.get('VAR_TOOL3NAME')
+		tool_path = os.environ.get('VAR_TOOL3PATH')
+		print(f"Launch {tool_name}... | font=JetBrainsMono-Regular bash='{tool_path}' terminal=false")  
+			
+	if (os.environ.get('VAR_TOOL4NAME')!=None):
+		tool_name = os.environ.get('VAR_TOOL4NAME')
+		tool_path = os.environ.get('VAR_TOOL4PATH')
+		print(f"Launch {tool_name}... | font=JetBrainsMono-Regular bash='{tool_path}' terminal=false")  
+	
+	print(f"---")        
+	print(f"Setup")    
+	print(f"Reconnect... | font=JetBrainsMono-Regular shell='{scriptname}' param1=-reconnect terminal=true refresh=true")
 
 # functions for reconnecting
 def clear_screen():
