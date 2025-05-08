@@ -66,7 +66,7 @@ def main(args):
 		SMtoken = getSMToken(connectIP)
 		postIt(readStatus(SMtoken), readStatusEnclosure(SMtoken), snReply)
 	else:
-		postIt(snReply, None, None)
+		postIt(None, None, snReply)
 
 # Delete token and re-authorize.
 def reconnect():
@@ -345,22 +345,22 @@ def postIt(state, encState, bcReply):
 
 	print(f"---")
 	print(f"Tools")
-	if (os.environ.get('VAR_TOOL1NAME')!=None):
+	if (os.environ.get('VAR_TOOL1NAME')!=None and os.environ.get('VAR_TOOL1NAME')!=""):
 		tool_name = os.environ.get('VAR_TOOL1NAME')
 		tool_path = os.environ.get('VAR_TOOL1PATH')
 		print(f"Launch {tool_name}... | font=JetBrainsMono-Regular bash='{tool_path}' terminal=false")  
 	
-	if (os.environ.get('VAR_TOOL2NAME')!=None):
+	if (os.environ.get('VAR_TOOL2NAME')!=None and os.environ.get('VAR_TOOL2NAME')!=""):
 		tool_name = os.environ.get('VAR_TOOL2NAME')
 		tool_path = os.environ.get('VAR_TOOL2PATH')
 		print(f"Launch {tool_name}... | font=JetBrainsMono-Regular bash='{tool_path}' terminal=false")  
 		
-	if (os.environ.get('VAR_TOOL3NAME')!=None):
+	if (os.environ.get('VAR_TOOL3NAME')!=None and os.environ.get('VAR_TOOL3NAME')!=""):
 		tool_name = os.environ.get('VAR_TOOL3NAME')
 		tool_path = os.environ.get('VAR_TOOL3PATH')
 		print(f"Launch {tool_name}... | font=JetBrainsMono-Regular bash='{tool_path}' terminal=false")  
 			
-	if (os.environ.get('VAR_TOOL4NAME')!=None):
+	if (os.environ.get('VAR_TOOL4NAME')!=None and os.environ.get('VAR_TOOL4NAME')!=""):
 		tool_name = os.environ.get('VAR_TOOL4NAME')
 		tool_path = os.environ.get('VAR_TOOL4PATH')
 		print(f"Launch {tool_name}... | font=JetBrainsMono-Regular bash='{tool_path}' terminal=false")  
