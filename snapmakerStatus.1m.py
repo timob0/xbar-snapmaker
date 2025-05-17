@@ -1,5 +1,5 @@
 #!/usr/bin/env PYTHONIOENCODING=UTF-8 PYTHONWARNINGS=ignore python3
-# Requires: sudo pip3 install requests
+#  Requires: sudo pip3 install requests and JetBrainsMono Font
 #
 #  <xbar.title>Snapmaker 2 status</xbar.title>
 #  <xbar.version>v1.0.0</xbar.version>
@@ -197,20 +197,16 @@ def readStatusEnclosure(SMtoken):
 
 	# Response format {"isReady":true,"isDoorEnabled":false,"led":100,"fan":0}
 	status = json.loads(r.text)
+	
 	if status.get("isReady") is not None:
 		snEncReady = json.loads(r.text).get("isReady") 
 	else:
 		snEncReady = "N/A"    
 
-	if json.loads(r.text).get("isEnclosureDoorOpen") is not None:
-		snEncDoor = json.loads(r.text).get("isEnclosureDoorOpen") 
+	if status.get("isDoorEnabled") is not None:		
+		snEncDoorEnabled = json.loads(r.text).get("isDoorEnabled") 
 	else:
-		snEncDoor = "N/A"
-
-	if json.loads(r.text).get("isFilamentOut") is not None:
-		snEncDoor = json.loads(r.text).get("isFilamentOut") 
-	else:
-		snEncDoor = "N/A"         
+		snEncDoorEnabled = "N/A"
 
 	if json.loads(r.text).get("led") is not None:
 		snEncLed = f"{json.loads(r.text).get('led')}"
@@ -222,7 +218,7 @@ def readStatusEnclosure(SMtoken):
 	else:
 		snEncFan = "N/A"
 	
-	snReply = {"snEncReady":snEncReady,"snEncDoor":snEncDoor,"snEncLed":snEncLed,"snEncFan":snEncFan}
+	snReply = {"snEncReady":snEncReady,"snEncDoorEnabled":snEncDoorEnabled,"snEncLed":snEncLed,"snEncFan":snEncFan}
 	return(snReply)
 
 
@@ -249,21 +245,21 @@ def checkState(UDPClientSocket,msg,destPort,retries):
 	except socket.timeout:
 		retryCounter += 1
 		if (retryCounter==retries): 
-		  snReply = {"snIP":"N/A", "model":"N/A", "snStatus":"OFFLINE",
+			snReply = {"snIP":"N/A", "model":"N/A", "snStatus":"OFFLINE",
 					 "snNozzleTemp":0,"snNozzleTaTemp":0,
 					 "snHeatedBedTemp":0,"snHeatedBedTaTemp":0,"snFileName":"N/A",
 					 "snProgress":0,"snElapsedTime":"00:00:00","snRemainingTime":"00:00:00"}
-		  return
+			return
 		else:
-		  checkState(UDPClientSocket,msg,destPort,retries);
+			checkState(UDPClientSocket,msg,destPort,retries);
           
 # Check if IP is valid:          
 def validate_ip_address(ip_string):
 	try:
-	   ip_object = ipaddress.ip_address(ip_string)
-	   return True
+		ip_object = ipaddress.ip_address(ip_string)
+		return True
 	except ValueError:
-	   return False
+		return False
 
 # Update XBar
 def postIt(state, encState, bcReply):
@@ -331,8 +327,8 @@ def postIt(state, encState, bcReply):
 	if (encState is not None and encState['snEncReady']==True and state['snStatus']!="NOT_CONNECTED"):
 		print(f"---")
 		print(f"Enclosure")
-	
-		print(f"◫ Door     {'⚠ Open' if state['snEncDoorOpen'] else '■ Closed'} | font=JetBrainsMono-Regular bash=null")       	
+		if (encState['snEncDoorEnabled']==True):
+			print(f"◫ Door     {'⚠ Open' if state['snEncDoorOpen'] else '■ Closed'} | font=JetBrainsMono-Regular bash=null")       	
 		
 		ledBars = int(float(encState['snEncLed']) / 100.0 * 8)
 		bgraphLed = f"{bargraph[:ledBars]}"
